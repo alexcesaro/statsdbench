@@ -20,7 +20,9 @@ const (
 	gaugeKey    = "foo.bar.gauge"
 	gaugeValue  = 42
 	timingKey   = "foo.bar.timing"
-	timingValue = 153 * time.Millisecond
+	tValDur     = 153 * time.Millisecond
+	tValInt     = int(153)
+	tValInt64   = int64(153)
 	flushPeriod = 100 * time.Millisecond
 )
 
@@ -37,7 +39,7 @@ func BenchmarkAlexcesaro(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c.Increment(counterKey)
 		c.Gauge(gaugeKey, gaugeValue)
-		c.Timing(timingKey, int(timingValue), 1)
+		c.Timing(timingKey, tValInt, 1)
 	}
 	c.Close()
 	s.Close()
@@ -52,7 +54,22 @@ func BenchmarkCactus(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c.Inc(counterKey, 1, 1)
 		c.Gauge(gaugeKey, gaugeValue, 1)
-		c.Timing(timingKey, int64(timingValue), 1)
+		c.Timing(timingKey, tValInt64, 1)
+	}
+	c.Close()
+	s.Close()
+}
+
+func BenchmarkCactusTimingAsDuration(b *testing.B) {
+	s := newServer()
+	c, err := cactus.NewBufferedClient(addr, prefix, flushPeriod, 1432)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < b.N; i++ {
+		c.Inc(counterKey, 1, 1)
+		c.Gauge(gaugeKey, gaugeValue, 1)
+		c.TimingDuration(timingKey, tValDur, 1)
 	}
 	c.Close()
 	s.Close()
@@ -67,7 +84,7 @@ func BenchmarkG2s(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c.Counter(1, counterKey, 1)
 		c.Gauge(1, gaugeKey, strconv.Itoa(gaugeValue))
-		c.Timing(1, timingKey, timingValue)
+		c.Timing(1, timingKey, tValDur)
 	}
 	s.Close()
 }
@@ -79,7 +96,20 @@ func BenchmarkQuipo(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c.Incr(counterKey, 1)
 		c.Gauge(gaugeKey, gaugeValue)
-		c.Timing(timingKey, int64(timingValue))
+		c.Timing(timingKey, tValInt64)
+	}
+	c.Close()
+	s.Close()
+}
+
+func BenchmarkQuipoTimingAsDuration(b *testing.B) {
+	s := newServer()
+	c := quipo.NewStatsdBuffer(flushPeriod, quipo.NewStatsdClient(addr, prefix))
+	c.Logger = logger{}
+	for i := 0; i < b.N; i++ {
+		c.Incr(counterKey, 1)
+		c.Gauge(gaugeKey, gaugeValue)
+		c.PrecisionTiming(timingKey, tValDur)
 	}
 	c.Close()
 	s.Close()
