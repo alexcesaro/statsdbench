@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	dieterbe "github.com/Dieterbe/statsd-go"
 	alexcesaro "github.com/alexcesaro/statsd"
 	cactus "github.com/cactus/go-statsd-client/statsd"
 	"github.com/peterbourgon/g2s"
@@ -70,6 +71,21 @@ func BenchmarkCactusTimingAsDuration(b *testing.B) {
 		c.Inc(counterKey, 1, 1)
 		c.Gauge(gaugeKey, gaugeValue, 1)
 		c.TimingDuration(timingKey, tValDur, 1)
+	}
+	c.Close()
+	s.Close()
+}
+
+func BenchmarkDieterbe(b *testing.B) {
+	s := newServer()
+	c, err := dieterbe.NewClient(true, addr, prefix)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < b.N; i++ {
+		c.Increment(counterKey)
+		c.Gauge(gaugeKey, gaugeValue)
+		c.Timing(timingKey, tValInt64)
 	}
 	c.Close()
 	s.Close()
