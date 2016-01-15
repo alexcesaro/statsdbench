@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	addr        = ":8125"
+	addr        = ":0"
 	prefix      = "prefix."
 	prefixNoDot = "prefix"
 	counterKey  = "foo.bar.counter"
@@ -30,10 +30,13 @@ func (logger) Println(v ...interface{}) {}
 
 func BenchmarkAlexcesaro(b *testing.B) {
 	s := newServer()
-	c, err := alexcesaro.New(addr, alexcesaro.WithPrefix(prefix), alexcesaro.WithFlushPeriod(flushPeriod))
+	c, err := alexcesaro.New(s.Addr(), alexcesaro.WithPrefix(prefix), alexcesaro.WithFlushPeriod(flushPeriod))
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		c.Increment(counterKey)
 		c.Gauge(gaugeKey, gaugeValue)
@@ -45,10 +48,13 @@ func BenchmarkAlexcesaro(b *testing.B) {
 
 func BenchmarkCactus(b *testing.B) {
 	s := newServer()
-	c, err := cactus.NewBufferedClient(addr, prefix, flushPeriod, 1432)
+	c, err := cactus.NewBufferedClient(s.Addr(), prefix, flushPeriod, 1432)
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		c.Inc(counterKey, 1, 1)
 		c.Gauge(gaugeKey, gaugeValue, 1)
@@ -60,10 +66,13 @@ func BenchmarkCactus(b *testing.B) {
 
 func BenchmarkG2s(b *testing.B) {
 	s := newServer()
-	c, err := g2s.Dial("udp", addr)
+	c, err := g2s.Dial("udp", s.Addr())
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		c.Counter(1, counterKey, 1)
 		c.Gauge(1, gaugeKey, strconv.Itoa(gaugeValue))
@@ -74,8 +83,11 @@ func BenchmarkG2s(b *testing.B) {
 
 func BenchmarkQuipo(b *testing.B) {
 	s := newServer()
-	c := quipo.NewStatsdBuffer(flushPeriod, quipo.NewStatsdClient(addr, prefix))
+	c := quipo.NewStatsdBuffer(flushPeriod, quipo.NewStatsdClient(s.Addr(), prefix))
 	c.Logger = logger{}
+
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		c.Incr(counterKey, 1)
 		c.Gauge(gaugeKey, gaugeValue)
@@ -111,6 +123,10 @@ func newServer() *server {
 		}
 	}()
 	return s
+}
+
+func (s *server) Addr() string {
+	return s.conn.LocalAddr().String()
 }
 
 func (s *server) Close() {
