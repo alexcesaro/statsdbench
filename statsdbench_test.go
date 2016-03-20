@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	alexcesaro "github.com/alexcesaro/statsd"
 	cactus "github.com/cactus/go-statsd-client/statsd"
 	"github.com/peterbourgon/g2s"
 	quipo "github.com/quipo/statsd"
+	ac "gopkg.in/alexcesaro/statsd.v2"
 )
 
 const (
@@ -30,7 +30,11 @@ func (logger) Println(v ...interface{}) {}
 
 func BenchmarkAlexcesaro(b *testing.B) {
 	s := newServer()
-	c, err := alexcesaro.New(s.Addr(), alexcesaro.WithPrefix(prefix), alexcesaro.WithFlushPeriod(flushPeriod))
+	c, err := ac.New(
+		ac.Address(s.Addr()),
+		ac.Prefix(prefixNoDot),
+		ac.FlushPeriod(flushPeriod),
+	)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -40,7 +44,7 @@ func BenchmarkAlexcesaro(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c.Increment(counterKey)
 		c.Gauge(gaugeKey, gaugeValue)
-		c.Timing(timingKey, int(timingValue), 1)
+		c.Timing(timingKey, timingValue)
 	}
 	c.Close()
 	s.Close()
