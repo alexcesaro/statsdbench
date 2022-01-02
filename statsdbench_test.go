@@ -14,6 +14,7 @@ import (
 	ac_fork "github.com/joeycumines/statsd"
 	"github.com/peterbourgon/g2s"
 	quipo "github.com/quipo/statsd"
+	smira "github.com/smira/go-statsd"
 	ac_upstream "gopkg.in/alexcesaro/statsd.v2"
 )
 
@@ -320,6 +321,57 @@ func BenchmarkQuipo(b *testing.B) {
 	validateServer(b, s)
 }
 
+func BenchmarkSmira(b *testing.B) {
+	for _, tc := range [...]struct {
+		Name   string
+		Server ServerFactory
+		Client func(server Server) (*smira.Client, error)
+	}{
+		{
+			Name:   `strange results`,
+			Server: newUDPServer,
+			Client: func(server Server) (*smira.Client, error) {
+				client := smira.NewClient(
+					server.Addr(),
+					smira.Logger(logger{}),
+					smira.MaxPacketSize(maxPacketSizeUpper),
+					smira.FlushInterval(flushPeriod),
+					smira.MetricPrefix(prefix),
+				)
+				return client, nil
+			},
+		},
+	} {
+		b.Run(tc.Name, func(b *testing.B) {
+			s := tc.Server()
+			defer s.Close()
+
+			c, err := tc.Client(s)
+			if err != nil {
+				b.Fatal(err)
+			}
+			defer c.Close()
+
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				c.Incr(counterKey, 1)
+				c.Gauge(gaugeKey, gaugeValue)
+				c.Timing(timingKey, int64(timingValue/time.Millisecond))
+			}
+
+			if err := c.Close(); err != nil {
+				b.Fatal(err)
+			}
+
+			b.StopTimer()
+
+			s.Close()
+			validateServer(b, s)
+		})
+	}
+}
+
 func validateServer(b *testing.B, s Server) {
 	const (
 		numMetrics = 3
@@ -427,6 +479,8 @@ func newUDPServer() Server {
 func newMemServer() Server { return new(memServer) }
 
 func (logger) Println(v ...interface{}) {}
+
+func (logger) Printf(fmt string, args ...interface{}) {}
 
 func (s *udpServer) Addr() string {
 	return s.conn.LocalAddr().String()

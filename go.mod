@@ -7,5 +7,6 @@ require (
 	github.com/joeycumines/statsd v1.2.0
 	github.com/peterbourgon/g2s v0.0.0-20170223122336-d4e7ad98afea
 	github.com/quipo/statsd v0.0.0-20180118161217-3d6a5565f314
+	github.com/smira/go-statsd v1.3.2
 	gopkg.in/alexcesaro/statsd.v2 v2.0.0
 )
